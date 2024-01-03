@@ -291,14 +291,18 @@ public class EdgeAPI extends BatchAPI {
         HugeGraph g = graph(manager, graph);
 
         GraphTraversal<?, Edge> traversal;
+        VertexLabel vertexLabel = g.vertexLabel(vertex);
 
-        if (label != null && !g.existsEdgeLabel(label)) {
-            try {
-                traversal = g.traversal().E().limit(0);
-                return manager.serializer(g).writeEdges(traversal, page != null);
-            } finally {
-                if (g.tx().isOpen()) {
-                    g.tx().close();
+        if (label != null) {
+            EdgeLabel edgeLabel = g.edgeLabel(label);
+            if (!edgeLabel.linkWithLabel(vertexLabel.id())){
+                try {
+                    traversal = g.traversal().E().limit(0);
+                    return manager.serializer(g).writeEdges(traversal, page != null);
+                } finally {
+                    if (g.tx().isOpen()) {
+                        g.tx().close();
+                    }
                 }
             }
         }
