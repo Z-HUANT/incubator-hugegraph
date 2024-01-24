@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.hugegraph.HugeException;
@@ -1450,25 +1451,54 @@ public class GraphTransaction extends IndexableTransaction {
         // Optimize edge query
         if (query.resultType().isEdge() && label != null &&
             query.condition(HugeKeys.OWNER_VERTEX) != null &&
-            query.condition(HugeKeys.DIRECTION) != null &&
-            matchEdgeSortKeys(query, false, this.graph())) {
-            // Query edge by sourceVertex + direction + label + sort-values
-            query.optimized(OptimizedType.SORT_KEYS);
-            query = query.copy();
-            // Serialize sort-values
-            List<Id> keys = this.graph().edgeLabel(label).sortKeys();
-            List<Condition> conditions =
-                            GraphIndexTransaction.constructShardConditions(
-                            query, keys, HugeKeys.SORT_VALUES);
-            query.query(conditions);
-            /*
-             * Reset all userprop since transferred to sort-keys, ignore other
-             * userprop(if exists) that it will be filtered by queryEdges(Query)
-             */
-            query.resetUserpropConditions();
+            query.condition(HugeKeys.DIRECTION) != null) {
 
-            LOG.debug("Query edges by sortKeys: {}", query);
-            return query;
+            Directions dir = query.condition(HugeKeys.DIRECTION);
+            EdgeLabel edgeLabel = this.graph().edgeLabel(label);
+
+            if (query.containsRelation(HugeKeys.OWNER_VERTEX, Condition.RelationType.IN)) {
+                // For IN query, filter schema non-adjacent vertices.
+                ArrayList<Id> vertexIdList = query.condition(HugeKeys.OWNER_VERTEX);
+                List<Id> filterVertexList = vertexIdList.stream().filter(vertexId -> {
+                    Vertex vertex = this.graph().vertex(vertexId);
+                    VertexLabel vertexLabel = graph().vertexLabel(vertex.label());
+                    return edgeLabel.linkWithLabel(vertexLabel.id(), dir.type());
+                }).collect(Collectors.toList());
+                vertexIdList.clear();
+                vertexIdList.addAll(filterVertexList);
+                if (CollectionUtils.isEmpty(vertexIdList)) {
+                    // Return empty query to skip storage query
+                    return new Query(query.resultType());
+                }
+            } else if (query.containsRelation(HugeKeys.OWNER_VERTEX, Condition.RelationType.EQ)) {
+                // For EQ query, just skip query if adjacent schema is unavailable.
+                Id vertexId = query.condition(HugeKeys.OWNER_VERTEX);
+                Vertex vertex = this.graph().vertex(vertexId);
+                VertexLabel vertexLabel = graph().vertexLabel(vertex.label());
+                if (!edgeLabel.linkWithLabel(vertexLabel.id(), dir.type())) {
+                    // Return empty query to skip storage query
+                    return new Query(query.resultType());
+                }
+            }
+
+            if (matchEdgeSortKeys(query, false, this.graph())) {
+                // Query edge by sourceVertex + direction + label + sort-values
+                query.optimized(OptimizedType.SORT_KEYS);
+                query = query.copy();
+                // Serialize sort-values
+                List<Id> keys = this.graph().edgeLabel(label).sortKeys();
+                List<Condition> conditions = GraphIndexTransaction.constructShardConditions(
+                    query, keys, HugeKeys.SORT_VALUES);
+                query.query(conditions);
+                /*
+                 * Reset all userprop since transferred to sort-keys, ignore other
+                 * userprop(if exists) that it will be filtered by queryEdges(Query)
+                 */
+                query.resetUserpropConditions();
+
+                LOG.debug("Query edges by sortKeys: {}", query);
+                return query;
+            }
         }
 
         /*
