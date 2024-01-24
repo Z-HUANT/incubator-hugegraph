@@ -1456,6 +1456,7 @@ public class GraphTransaction extends IndexableTransaction {
             Directions dir = query.condition(HugeKeys.DIRECTION);
             EdgeLabel edgeLabel = this.graph().edgeLabel(label);
 
+            LOG.info("Optimize edge query start [{}]", query);
             if (query.containsRelation(HugeKeys.OWNER_VERTEX, Condition.RelationType.IN)) {
                 // For IN queries, filter out non-adjacent vertices.
                 ArrayList<Id> vertexIdList = query.condition(HugeKeys.OWNER_VERTEX);
@@ -1475,6 +1476,7 @@ public class GraphTransaction extends IndexableTransaction {
                     return new Query(query.resultType());
                 }
             }
+            LOG.info("Optimize edge query end [{}]", query);
 
             if (matchEdgeSortKeys(query, false, this.graph())) {
                 // Query edge by sourceVertex + direction + label + sort-values
