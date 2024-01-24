@@ -291,19 +291,6 @@ public class EdgeAPI extends BatchAPI {
         HugeGraph g = graph(manager, graph);
 
         GraphTraversal<?, Edge> traversal;
-
-        // Optimize edge query. Return early when the EdgeLabel does not exist.
-        if (label != null && !g.existsEdgeLabel(label)) {
-            try {
-                traversal = g.traversal().E().limit(0);
-                return manager.serializer(g).writeEdges(traversal, page != null);
-            } finally {
-                if (g.tx().isOpen()) {
-                    g.tx().close();
-                }
-            }
-        }
-
         if (vertex != null) {
             if (label != null) {
                 traversal = g.traversal().V(vertex).toE(dir, label);

@@ -98,15 +98,6 @@ public class EdgeLabel extends SchemaLabel {
         return this.sourceLabel.equals(id) || this.targetLabel.equals(id);
     }
 
-    public boolean linkWithLabel(Id id, HugeType type) {
-        if (type.equals(HugeType.EDGE_IN)) {
-            return this.targetLabel.equals(id);
-        } else if (type.equals(HugeType.EDGE_OUT)) {
-            return this.sourceLabel.equals(id);
-        }
-        return false;
-    }
-
     public boolean checkLinkEqual(Id sourceLabel, Id targetLabel) {
         return this.sourceLabel.equals(sourceLabel) &&
                this.targetLabel.equals(targetLabel);
