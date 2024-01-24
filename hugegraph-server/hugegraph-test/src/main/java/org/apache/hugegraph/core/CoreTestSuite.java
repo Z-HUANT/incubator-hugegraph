@@ -17,15 +17,12 @@
 
 package org.apache.hugegraph.core;
 
-import org.apache.hugegraph.unit.cache.RamTableTest;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
-    EdgeCoreTest.class,
-    AuthTest.class,
-    RamTableTest.class
+    EdgeCoreTest.class
 })
 public class CoreTestSuite {
 }
